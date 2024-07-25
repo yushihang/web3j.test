@@ -2,23 +2,28 @@ package com.web3jtest
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.google.gson.GsonBuilder
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.suspendCancellableCoroutine
+import org.web3j.abi.datatypes.generated.Uint256
 import org.web3j.crypto.Credentials
 import org.web3j.crypto.RawTransaction
 import org.web3j.crypto.TransactionEncoder
 import org.web3j.protocol.Web3j
 import org.web3j.protocol.core.DefaultBlockParameterName
+import org.web3j.protocol.core.RemoteFunctionCall
 import org.web3j.protocol.core.Request
 import org.web3j.protocol.core.Response
 import org.web3j.protocol.http.HttpService
+import org.web3j.tx.gas.DefaultGasProvider
 import org.web3j.utils.Numeric
 import java.math.BigInteger
 import java.util.concurrent.CompletableFuture
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
-import kotlin.coroutines.suspendCoroutine
+
 
 data class Web3jState(
     val web3jVersion: StateFlow<String> = MutableStateFlow("None"),
@@ -29,6 +34,7 @@ data class Web3jState(
     val balance: StateFlow<BigInteger> = MutableStateFlow(BigInteger("0")),
     var txHash: StateFlow<String> = MutableStateFlow(("None")),
     var txHashReceipt: StateFlow<String> = MutableStateFlow(("None")),
+    var contractViewFuntionResponse: StateFlow<String> = MutableStateFlow(("None")),
 )
 
 class ViewModel : ViewModel() {
@@ -42,6 +48,12 @@ class ViewModel : ViewModel() {
     private val otherAddress = "0xC0B05B621Ab20123bfC52186708444c783351e69"
     private val credentials: Credentials = Credentials.create(privateKey)
 
+    private val contractAddressHex = "0xdc5ECDd72a4201D379a976a118a359a02637D30f"
+
+    private val stateContract : StateContract = StateContract.load(contractAddressHex, web3j, credentials,
+        DefaultGasProvider())
+
+
     fun getWeb3jVersion(): StateFlow<String> = state.web3jVersion
     fun getWeb3jNetVersion(): StateFlow<String> = state.web3jNetVersion
     fun getWeb3jEthProtocolVersion(): StateFlow<String> = state.web3jEthProtocolVersion
@@ -50,12 +62,29 @@ class ViewModel : ViewModel() {
     fun getBalance(): StateFlow<BigInteger> = state.balance
     fun getTxHash(): StateFlow<String> = state.txHash
     fun getTxHashReceipt(): StateFlow<String> = state.txHashReceipt
+    fun getContractViewFuntionResponse(): StateFlow<String> = state.contractViewFuntionResponse
 
 
+
+    private suspend fun <T> handleContractCall(
+        remoteFunctionCall: RemoteFunctionCall<T>
+    ): T = suspendCancellableCoroutine { continuation ->
+        val future = remoteFunctionCall.sendAsync()
+        future.thenAccept { result ->
+            continuation.resume(result)
+        }.exceptionally { ex ->
+            continuation.resumeWithException(ex)
+            null
+        }
+
+        continuation.invokeOnCancellation {
+            future.cancel(true)
+        }
+    }
 
     private suspend fun <T : Response<*>> handleWeb3jRequest(
         request: Request<*, T>
-    ): T = suspendCoroutine { continuation ->
+    ): T = suspendCancellableCoroutine { continuation ->
         val future: CompletableFuture<T> = request.sendAsync()
         future.thenAccept { result ->
             continuation.resume(result)
@@ -63,6 +92,10 @@ class ViewModel : ViewModel() {
             ex.printStackTrace()
             continuation.resumeWithException(ex)
             null
+        }
+
+        continuation.invokeOnCancellation {
+            future.cancel(true)
         }
     }
 
@@ -183,9 +216,27 @@ class ViewModel : ViewModel() {
     fun updateTxHashReceipt() {
         viewModelScope.launch {
             try {
-                val transactionReceipt = handleWeb3jRequest(web3j.ethGetTransactionReceipt(state.txHash.value)).transactionReceipt
-                println("transactionReceipt: $transactionReceipt")
+                val transactionReceipt = handleWeb3jRequest(web3j.ethGetTransactionReceipt(state.txHash.value)).transactionReceipt.get()
+                val gson = GsonBuilder().setPrettyPrinting().create()
+                val json = gson.toJson(transactionReceipt)
+                println("transactionReceipt: $json")
+                (state.txHashReceipt as MutableStateFlow).value = json
 
+            } catch (e: Exception) {
+                // 处理异常
+                e.printStackTrace()
+            }
+        }
+    }
+
+    fun callContractViewFunction() {
+        viewModelScope.launch {
+            try {
+
+                val gistProof = handleContractCall(stateContract.getGISTProof(Uint256(123)))
+                val gistProofStr = gistProof.toPrettyString()
+                println("response: $gistProofStr")
+                (state.contractViewFuntionResponse as MutableStateFlow).value = gistProofStr
             } catch (e: Exception) {
                 // 处理异常
                 e.printStackTrace()
@@ -194,4 +245,21 @@ class ViewModel : ViewModel() {
     }
 }
 
-
+fun StateContract.GistProof.toPrettyString(): String {
+    return buildString {
+        append("GistProof(\n")
+        append("    root: ${root.value},\n")
+        append("    existence: ${existence.value},\n")
+        append("    siblings: [\n")
+        for (item in siblings.value) {
+            append("        ${item}\n")
+        }
+        append("    ],\n")
+        append("    index: ${index.value},\n")
+        append("    value: ${value.value},\n")
+        append("    auxExistence: ${auxExistence.value},\n")
+        append("    auxIndex: ${auxIndex.value},\n")
+        append("    auxValue: ${auxValue.value}\n")
+        append(")")
+    }
+}

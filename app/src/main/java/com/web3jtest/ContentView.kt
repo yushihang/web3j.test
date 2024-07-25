@@ -91,8 +91,32 @@ fun MainActivity.SignAndSendTxNode() {
         Text("Sign & Send Tx")
     }
 
-    Text("Peer Count: $txHash")
+    Text("Tx Hash: $txHash")
 }
+
+@Composable
+fun MainActivity.TxHashReceiptNode() {
+    val receipt by viewModel.getTxHashReceipt().collectAsState()
+
+    Button(onClick = {viewModel.updateTxHashReceipt()}) {
+        Text("Tx Receipt")
+    }
+
+    Text("Tx Receipt: $receipt")
+}
+
+@Composable
+fun MainActivity.CallContractViewFunctionNode() {
+    val response by viewModel.getContractViewFuntionResponse().collectAsState()
+
+    Button(onClick = {viewModel.callContractViewFunction()}) {
+        Text("Call Contract View Function")
+    }
+
+    Text("Call Response: $response")
+}
+
+
 
 
 @Composable
@@ -121,6 +145,10 @@ fun MainActivity.ContentView(modifier: Modifier = Modifier) {
         BalanceNode()
 
         SignAndSendTxNode()
+
+        TxHashReceiptNode()
+
+        CallContractViewFunctionNode()
 
     }
 }
