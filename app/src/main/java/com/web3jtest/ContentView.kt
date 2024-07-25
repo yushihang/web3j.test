@@ -18,7 +18,7 @@ import androidx.compose.ui.unit.dp
 
 @Composable
 fun MainActivity.Web3jVersionNode() {
-    val version by viewModel.web3jVersion.collectAsState()
+    val version by viewModel.getWeb3jVersion().collectAsState()
 
     Button(onClick = {viewModel.updateWeb3jVersion()}) {
         Text("Get Web3j Version")
@@ -29,7 +29,7 @@ fun MainActivity.Web3jVersionNode() {
 
 @Composable
 fun MainActivity.Web3jNetVersionNode() {
-    val version by viewModel.web3jNetVersion.collectAsState()
+    val version by viewModel.getWeb3jNetVersion().collectAsState()
 
     Button(onClick = {viewModel.updateWeb3jNetVersion()}) {
         Text("Get Web3j Net Version")
@@ -40,7 +40,7 @@ fun MainActivity.Web3jNetVersionNode() {
 
 @Composable
 fun MainActivity.Web3jEthProtocolVersionNode() {
-    val version by viewModel.web3jEthProtocolVersion.collectAsState()
+    val version by viewModel.getWeb3jEthProtocolVersion().collectAsState()
 
     Button(onClick = {viewModel.updateWeb3jEthProtocolVersion()}) {
         Text("Get Web3j EthProtocol Version")
@@ -51,7 +51,7 @@ fun MainActivity.Web3jEthProtocolVersionNode() {
 
 @Composable
 fun MainActivity.Web3jShhVersionNode() {
-    val version by viewModel.web3jShhVersion.collectAsState()
+    val version by viewModel.getWeb3jShhVersion().collectAsState()
 
     Button(onClick = {viewModel.updateWeb3jShhVersion()}) {
         Text("Get Web3j Shh Version")
@@ -62,7 +62,7 @@ fun MainActivity.Web3jShhVersionNode() {
 
 @Composable
 fun MainActivity.PeerCountNode() {
-    val count by viewModel.peerCount.collectAsState()
+    val count by viewModel.getPeerCount().collectAsState()
 
     Button(onClick = {viewModel.updatePeerCount()}) {
         Text("Get Peer Count")

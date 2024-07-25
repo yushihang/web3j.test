@@ -1,14 +1,20 @@
 package com.web3jtest
 
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.launch
 import org.web3j.crypto.Credentials
 import org.web3j.protocol.Web3j
 import org.web3j.protocol.core.Request
 import org.web3j.protocol.core.Response
 import org.web3j.protocol.http.HttpService
 import java.math.BigInteger
+import java.util.concurrent.CompletableFuture
+import kotlin.coroutines.resume
+import kotlin.coroutines.resumeWithException
+import kotlin.coroutines.suspendCoroutine
 
 data class Web3jState(
     val web3jVersion: StateFlow<String> = MutableStateFlow("None"),
@@ -16,7 +22,8 @@ data class Web3jState(
     val web3jEthProtocolVersion: StateFlow<String> = MutableStateFlow("None"),
     val web3jShhVersion: StateFlow<String> = MutableStateFlow("None"),
     val peerCount: StateFlow<BigInteger> = MutableStateFlow(BigInteger("-1")),
-    val balance: StateFlow<BigInteger> = MutableStateFlow(BigInteger("0"))
+    val balance: StateFlow<BigInteger> = MutableStateFlow(BigInteger("0")),
+    var txHash: StateFlow<String> = MutableStateFlow(("None"))
 )
 
 class ViewModel : ViewModel() {
@@ -36,55 +43,91 @@ class ViewModel : ViewModel() {
     fun getWeb3jShhVersion(): StateFlow<String> = state.web3jShhVersion
     fun getPeerCount(): StateFlow<BigInteger> = state.peerCount
     fun getBalance(): StateFlow<BigInteger> = state.balance
+    fun getTxHash(): StateFlow<String> = state.txHash
 
 
-    private fun <T : Response<*>> handleRequest(
-        request: Request<*, T>,
-        onSuccess: (T) -> Unit
-    ) {
-        val future = request.sendAsync()
+
+
+    private suspend fun <T : Response<*>> handleWeb3jRequest(
+        request: Request<*, T>
+    ): T = suspendCoroutine { continuation ->
+        val future: CompletableFuture<T> = request.sendAsync()
         future.thenAccept { result ->
-            onSuccess(result)
+            continuation.resume(result)
         }.exceptionally { ex ->
             ex.printStackTrace()
+            continuation.resumeWithException(ex)
             null
         }
     }
 
-    // 调用示例
     fun updateWeb3jVersion() {
-        handleRequest(web3j.web3ClientVersion()) { response ->
-            println("Connected to Ethereum client version: ${response.web3ClientVersion}")
-            (state.web3jVersion as MutableStateFlow).value = response.web3ClientVersion
+        viewModelScope.launch {
+            try {
+                val response = handleWeb3jRequest(web3j.web3ClientVersion())
+                println("Connected to Ethereum client version: ${response.web3ClientVersion}")
+                (state.web3jVersion as MutableStateFlow).value = response.web3ClientVersion
+            } catch (e: Exception) {
+                // 处理异常
+                e.printStackTrace()
+            }
         }
     }
 
     fun updateWeb3jNetVersion() {
-        handleRequest(web3j.netVersion()) { response ->
-            println("Network version: ${response.netVersion}")
-            (state.web3jNetVersion as MutableStateFlow).value = response.netVersion
+        viewModelScope.launch {
+            try {
+                val response = handleWeb3jRequest(web3j.netVersion())
+                println("Network version: ${response.netVersion}")
+                (state.web3jNetVersion as MutableStateFlow).value = response.netVersion
+            } catch (e: Exception) {
+                // 处理异常
+                e.printStackTrace()
+            }
         }
     }
 
     fun updateWeb3jEthProtocolVersion() {
-        handleRequest(web3j.ethProtocolVersion()) { response ->
-            println("eth protocol version: ${response.result}")
-            (state.web3jEthProtocolVersion as MutableStateFlow).value = response.result
+        viewModelScope.launch {
+            try {
+                val response = handleWeb3jRequest(web3j.ethProtocolVersion())
+                println("eth protocol version: ${response.result}")
+                (state.web3jEthProtocolVersion as MutableStateFlow).value = response.result
+            } catch (e: Exception) {
+                // 处理异常
+                e.printStackTrace()
+            }
         }
     }
 
     fun updateWeb3jShhVersion() {
-        handleRequest(web3j.shhVersion()) { response ->
-            println("Shh version: ${response.result}")
-            (state.web3jShhVersion as MutableStateFlow).value = response.result
+        viewModelScope.launch {
+            try {
+                val response = handleWeb3jRequest(web3j.shhVersion())
+                println("Shh version: ${response.result}")
+                (state.web3jShhVersion as MutableStateFlow).value = response.result
+            } catch (e: Exception) {
+                // 处理异常
+                e.printStackTrace()
+            }
         }
     }
 
     fun updatePeerCount() {
-        handleRequest(web3j.netPeerCount()) { response ->
-            println("Peer count: ${response.quantity}")
-            (state.peerCount as MutableStateFlow).value = response.quantity
+        viewModelScope.launch {
+            try {
+                val response = handleWeb3jRequest(web3j.netPeerCount())
+                println("Peer count: ${response.quantity}")
+                (state.peerCount as MutableStateFlow).value = response.quantity
+            } catch (e: Exception) {
+                // 处理异常
+                e.printStackTrace()
+            }
         }
+    }
+
+    fun signAndSendTx(amount: BigInteger) {
+
     }
 }
 
