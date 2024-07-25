@@ -6,10 +6,14 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import org.web3j.crypto.Credentials
+import org.web3j.crypto.RawTransaction
+import org.web3j.crypto.TransactionEncoder
 import org.web3j.protocol.Web3j
+import org.web3j.protocol.core.DefaultBlockParameterName
 import org.web3j.protocol.core.Request
 import org.web3j.protocol.core.Response
 import org.web3j.protocol.http.HttpService
+import org.web3j.utils.Numeric
 import java.math.BigInteger
 import java.util.concurrent.CompletableFuture
 import kotlin.coroutines.resume
@@ -23,7 +27,8 @@ data class Web3jState(
     val web3jShhVersion: StateFlow<String> = MutableStateFlow("None"),
     val peerCount: StateFlow<BigInteger> = MutableStateFlow(BigInteger("-1")),
     val balance: StateFlow<BigInteger> = MutableStateFlow(BigInteger("0")),
-    var txHash: StateFlow<String> = MutableStateFlow(("None"))
+    var txHash: StateFlow<String> = MutableStateFlow(("None")),
+    var txHashReceipt: StateFlow<String> = MutableStateFlow(("None")),
 )
 
 class ViewModel : ViewModel() {
@@ -35,7 +40,7 @@ class ViewModel : ViewModel() {
     private val privateKey = "f653cbda28c5625ff9c2c9eb40b94dd846d6e68c4f7f8f3d32e5a10832f793f1"
 
     private val otherAddress = "0xC0B05B621Ab20123bfC52186708444c783351e69"
-    val credentials = Credentials.create(privateKey)
+    private val credentials: Credentials = Credentials.create(privateKey)
 
     fun getWeb3jVersion(): StateFlow<String> = state.web3jVersion
     fun getWeb3jNetVersion(): StateFlow<String> = state.web3jNetVersion
@@ -44,7 +49,7 @@ class ViewModel : ViewModel() {
     fun getPeerCount(): StateFlow<BigInteger> = state.peerCount
     fun getBalance(): StateFlow<BigInteger> = state.balance
     fun getTxHash(): StateFlow<String> = state.txHash
-
+    fun getTxHashReceipt(): StateFlow<String> = state.txHashReceipt
 
 
 
@@ -64,9 +69,9 @@ class ViewModel : ViewModel() {
     fun updateWeb3jVersion() {
         viewModelScope.launch {
             try {
-                val response = handleWeb3jRequest(web3j.web3ClientVersion())
-                println("Connected to Ethereum client version: ${response.web3ClientVersion}")
-                (state.web3jVersion as MutableStateFlow).value = response.web3ClientVersion
+                val web3ClientVersion = handleWeb3jRequest(web3j.web3ClientVersion()).web3ClientVersion
+                println("Connected to Ethereum client version: $web3ClientVersion")
+                (state.web3jVersion as MutableStateFlow).value = web3ClientVersion
             } catch (e: Exception) {
                 // 处理异常
                 e.printStackTrace()
@@ -77,9 +82,9 @@ class ViewModel : ViewModel() {
     fun updateWeb3jNetVersion() {
         viewModelScope.launch {
             try {
-                val response = handleWeb3jRequest(web3j.netVersion())
-                println("Network version: ${response.netVersion}")
-                (state.web3jNetVersion as MutableStateFlow).value = response.netVersion
+                val netVersion = handleWeb3jRequest(web3j.netVersion()).netVersion
+                println("Network version: $netVersion")
+                (state.web3jNetVersion as MutableStateFlow).value = netVersion
             } catch (e: Exception) {
                 // 处理异常
                 e.printStackTrace()
@@ -90,9 +95,9 @@ class ViewModel : ViewModel() {
     fun updateWeb3jEthProtocolVersion() {
         viewModelScope.launch {
             try {
-                val response = handleWeb3jRequest(web3j.ethProtocolVersion())
-                println("eth protocol version: ${response.result}")
-                (state.web3jEthProtocolVersion as MutableStateFlow).value = response.result
+                val protocolVersion = handleWeb3jRequest(web3j.ethProtocolVersion()).protocolVersion
+                println("eth protocol version: $protocolVersion")
+                (state.web3jEthProtocolVersion as MutableStateFlow).value = protocolVersion
             } catch (e: Exception) {
                 // 处理异常
                 e.printStackTrace()
@@ -103,9 +108,9 @@ class ViewModel : ViewModel() {
     fun updateWeb3jShhVersion() {
         viewModelScope.launch {
             try {
-                val response = handleWeb3jRequest(web3j.shhVersion())
-                println("Shh version: ${response.result}")
-                (state.web3jShhVersion as MutableStateFlow).value = response.result
+                val version = handleWeb3jRequest(web3j.shhVersion()).version
+                println("Shh version: $version")
+                (state.web3jShhVersion as MutableStateFlow).value = version
             } catch (e: Exception) {
                 // 处理异常
                 e.printStackTrace()
@@ -116,9 +121,9 @@ class ViewModel : ViewModel() {
     fun updatePeerCount() {
         viewModelScope.launch {
             try {
-                val response = handleWeb3jRequest(web3j.netPeerCount())
-                println("Peer count: ${response.quantity}")
-                (state.peerCount as MutableStateFlow).value = response.quantity
+                val quantity = handleWeb3jRequest(web3j.netPeerCount()).quantity
+                println("Peer count: $quantity")
+                (state.peerCount as MutableStateFlow).value = quantity
             } catch (e: Exception) {
                 // 处理异常
                 e.printStackTrace()
@@ -126,8 +131,66 @@ class ViewModel : ViewModel() {
         }
     }
 
-    fun signAndSendTx(amount: BigInteger) {
+    fun updateBalance() {
+        viewModelScope.launch {
+            try {
+                val balance = handleWeb3jRequest(web3j.ethGetBalance(otherAddress, DefaultBlockParameterName.LATEST)).balance
+                println("Balance: $balance")
+                (state.balance as MutableStateFlow).value = balance
+            } catch (e: Exception) {
+                // 处理异常
+                e.printStackTrace()
+            }
+        }
+    }
 
+    fun signAndSendTx(value: BigInteger) {
+        viewModelScope.launch {
+            try {
+                val nonce = handleWeb3jRequest(web3j.ethGetTransactionCount(credentials.address, DefaultBlockParameterName.LATEST)).transactionCount
+                println("nonce: $nonce")
+                val gasPrice = handleWeb3jRequest(web3j.ethGasPrice()).gasPrice
+                println("gasPrice: $gasPrice")
+
+                val gasLimit = BigInteger.valueOf(21000)
+
+                val rawTransaction = RawTransaction.createTransaction(
+                    nonce,
+                    gasPrice,
+                    gasLimit,
+                    otherAddress,
+                    value,
+                    ""
+                )
+
+                val signedMessage = TransactionEncoder.signMessage(rawTransaction, credentials)
+
+                val hexValue = Numeric.toHexString(signedMessage)
+
+                val transactionHash = handleWeb3jRequest(web3j.ethSendRawTransaction(hexValue)).transactionHash
+
+                (state.txHash as MutableStateFlow).value = transactionHash
+
+                updateBalance()
+                updateTxHashReceipt()
+            } catch (e: Exception) {
+                // 处理异常
+                e.printStackTrace()
+            }
+        }
+    }
+
+    fun updateTxHashReceipt() {
+        viewModelScope.launch {
+            try {
+                val transactionReceipt = handleWeb3jRequest(web3j.ethGetTransactionReceipt(state.txHash.value)).transactionReceipt
+                println("transactionReceipt: $transactionReceipt")
+
+            } catch (e: Exception) {
+                // 处理异常
+                e.printStackTrace()
+            }
+        }
     }
 }
 

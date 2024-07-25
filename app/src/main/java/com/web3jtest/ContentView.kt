@@ -14,6 +14,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import java.math.BigInteger
 
 
 @Composable
@@ -71,6 +72,28 @@ fun MainActivity.PeerCountNode() {
     Text("Peer Count: $count")
 }
 
+@Composable
+fun MainActivity.BalanceNode() {
+    val balance by viewModel.getBalance().collectAsState()
+
+    Button(onClick = {viewModel.updateBalance()}) {
+        Text("Get Balance of Specified Account")
+    }
+
+    Text("Balance: $balance")
+}
+
+@Composable
+fun MainActivity.SignAndSendTxNode() {
+    val txHash by viewModel.getTxHash().collectAsState()
+
+    Button(onClick = {viewModel.signAndSendTx(BigInteger("12345"))}) {
+        Text("Sign & Send Tx")
+    }
+
+    Text("Peer Count: $txHash")
+}
+
 
 @Composable
 fun MainActivity.ContentView(modifier: Modifier = Modifier) {
@@ -94,6 +117,10 @@ fun MainActivity.ContentView(modifier: Modifier = Modifier) {
         Web3jShhVersionNode()
 
         PeerCountNode()
+
+        BalanceNode()
+
+        SignAndSendTxNode()
 
     }
 }
