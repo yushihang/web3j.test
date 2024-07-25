@@ -49,6 +49,28 @@ fun MainActivity.Web3jEthProtocolVersionNode() {
     Text("EthProtocol Version: $version")
 }
 
+@Composable
+fun MainActivity.Web3jShhVersionNode() {
+    val version by viewModel.web3jShhVersion.collectAsState()
+
+    Button(onClick = {viewModel.updateWeb3jShhVersion()}) {
+        Text("Get Web3j Shh Version")
+    }
+
+    Text("Shh Version: $version")
+}
+
+@Composable
+fun MainActivity.PeerCountNode() {
+    val count by viewModel.peerCount.collectAsState()
+
+    Button(onClick = {viewModel.updatePeerCount()}) {
+        Text("Get Peer Count")
+    }
+
+    Text("Peer Count: $count")
+}
+
 
 @Composable
 fun MainActivity.ContentView(modifier: Modifier = Modifier) {
@@ -68,6 +90,10 @@ fun MainActivity.ContentView(modifier: Modifier = Modifier) {
         Web3jNetVersionNode()
 
         Web3jEthProtocolVersionNode()
+
+        Web3jShhVersionNode()
+
+        PeerCountNode()
 
     }
 }

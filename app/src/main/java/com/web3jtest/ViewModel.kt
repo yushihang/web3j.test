@@ -5,11 +5,10 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import org.web3j.crypto.Credentials
 import org.web3j.protocol.Web3j
-import org.web3j.protocol.core.methods.response.EthProtocolVersion
-import org.web3j.protocol.core.methods.response.NetVersion
-import org.web3j.protocol.core.methods.response.Web3ClientVersion
+import org.web3j.protocol.core.Request
+import org.web3j.protocol.core.Response
 import org.web3j.protocol.http.HttpService
-import java.util.concurrent.CompletableFuture
+import java.math.BigInteger
 
 class ViewModel : ViewModel() {
 
@@ -27,39 +26,61 @@ class ViewModel : ViewModel() {
     private val _web3jEthProtocolVersion = MutableStateFlow("None")
     val web3jEthProtocolVersion: StateFlow<String> = _web3jEthProtocolVersion
 
-    fun updateWeb3jVersion() {
-        val web3ClientVersionFuture: CompletableFuture<Web3ClientVersion> = web3j.web3ClientVersion().sendAsync()
-        // 处理异步响应
-        web3ClientVersionFuture.thenAccept { web3ClientVersion ->
-            println("Connected to Ethereum client version: ${web3ClientVersion.web3ClientVersion}")
-            _web3jVersion.value = web3ClientVersion.web3ClientVersion
+    private val _web3jShhVersion = MutableStateFlow("None")
+    val web3jShhVersion: StateFlow<String> = _web3jShhVersion
+
+    private val _peerCount = MutableStateFlow(BigInteger("-1"))
+    val peerCount: StateFlow<BigInteger> = _peerCount
+
+
+    private fun <T : Response<*>> handleRequest(
+        request: Request<*, T>,
+        onSuccess: (T) -> Unit
+    ) {
+        val future = request.sendAsync()
+        future.thenAccept { result ->
+            onSuccess(result)
         }.exceptionally { ex ->
             ex.printStackTrace()
             null
+        }
+    }
+
+    // 调用示例
+    fun updateWeb3jVersion() {
+        handleRequest(web3j.web3ClientVersion()) { response ->
+            println("Connected to Ethereum client version: ${response.web3ClientVersion}")
+            _web3jVersion.value = response.web3ClientVersion
         }
     }
 
     fun updateWeb3jNetVersion() {
-        val web3NetVersionFuture: CompletableFuture<NetVersion> = web3j.netVersion().sendAsync()
-        // 处理异步响应
-        web3NetVersionFuture.thenAccept { web3NetVersion ->
-            println("{web3ClientVersion.netVersion: ${web3NetVersion.netVersion}")
-            _web3jNetVersion.value = web3NetVersion.netVersion
-        }.exceptionally { ex ->
-            ex.printStackTrace()
-            null
+        handleRequest(web3j.netVersion()) { response ->
+            println("Network version: ${response.netVersion}")
+            _web3jNetVersion.value = response.netVersion
         }
     }
 
     fun updateWeb3jEthProtocolVersion() {
-        val web3jEthProtocolVersionFuture: CompletableFuture<EthProtocolVersion> = web3j.ethProtocolVersion().sendAsync()
-        // 处理异步响应
-        web3jEthProtocolVersionFuture.thenAccept { web3jEthProtocolVersion ->
-            println("{web3ClientVersion.netVersion: ${web3jEthProtocolVersion.protocolVersion}")
-            _web3jEthProtocolVersion.value = web3jEthProtocolVersion.protocolVersion
-        }.exceptionally { ex ->
-            ex.printStackTrace()
-            null
+        handleRequest(web3j.ethProtocolVersion()) { response ->
+            println("eth protocol version: ${response.result}")
+            _web3jEthProtocolVersion.value = response.result
+        }
+    }
+
+    fun updateWeb3jShhVersion() {
+        handleRequest(web3j.shhVersion()) { response ->
+            println("Shh version: ${response.result}")
+            _web3jShhVersion.value = response.result
+        }
+    }
+
+    fun updatePeerCount() {
+        handleRequest(web3j.netPeerCount()) { response ->
+            println("Peer count: ${response.quantity}")
+            _peerCount.value = response.quantity
         }
     }
 }
+
+
