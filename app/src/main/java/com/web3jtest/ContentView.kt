@@ -17,14 +17,36 @@ import androidx.compose.ui.unit.dp
 
 
 @Composable
-fun MainActivity.VersionNode() {
-    val version by viewModel.version.collectAsState()
+fun MainActivity.Web3jVersionNode() {
+    val version by viewModel.web3jVersion.collectAsState()
 
-    Button(onClick = {viewModel.updateVersion("1.1.0")}) {
+    Button(onClick = {viewModel.updateWeb3jVersion()}) {
         Text("Get Web3j Version")
     }
 
     Text("Version: $version")
+}
+
+@Composable
+fun MainActivity.Web3jNetVersionNode() {
+    val version by viewModel.web3jNetVersion.collectAsState()
+
+    Button(onClick = {viewModel.updateWeb3jNetVersion()}) {
+        Text("Get Web3j Net Version")
+    }
+
+    Text("Net Version: $version")
+}
+
+@Composable
+fun MainActivity.Web3jEthProtocolVersionNode() {
+    val version by viewModel.web3jEthProtocolVersion.collectAsState()
+
+    Button(onClick = {viewModel.updateWeb3jEthProtocolVersion()}) {
+        Text("Get Web3j EthProtocol Version")
+    }
+
+    Text("EthProtocol Version: $version")
 }
 
 
@@ -41,7 +63,11 @@ fun MainActivity.ContentView(modifier: Modifier = Modifier) {
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
 
-        VersionNode()
+        Web3jVersionNode()
+
+        Web3jNetVersionNode()
+
+        Web3jEthProtocolVersionNode()
 
     }
 }
