@@ -1,5 +1,7 @@
 package com.web3jtest;
-
+//npx hardhat compile
+//curl -L get.web3j.io | sh && source ~/.web3j/source.sh
+//web3j generate solidity -st -jt -a  abi.json -o . -p com.web3jtest
 import com.google.gson.annotations.SerializedName;
 
 import io.reactivex.Flowable;
