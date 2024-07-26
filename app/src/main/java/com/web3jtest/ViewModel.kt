@@ -7,8 +7,13 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
+import org.json.JSONArray
+import org.json.JSONObject
 import org.web3j.abi.FunctionEncoder
+import org.web3j.abi.FunctionReturnDecoder
+import org.web3j.abi.TypeReference
 import org.web3j.abi.datatypes.Bool
+import org.web3j.abi.datatypes.DynamicArray
 import org.web3j.abi.datatypes.DynamicBytes
 import org.web3j.abi.datatypes.Function
 import org.web3j.abi.datatypes.generated.Uint256
@@ -20,6 +25,7 @@ import org.web3j.protocol.core.DefaultBlockParameterName
 import org.web3j.protocol.core.RemoteFunctionCall
 import org.web3j.protocol.core.Request
 import org.web3j.protocol.core.Response
+import org.web3j.protocol.core.methods.request.Transaction
 import org.web3j.protocol.http.HttpService
 import org.web3j.tx.gas.DefaultGasProvider
 import org.web3j.utils.Numeric
@@ -40,6 +46,7 @@ data class Web3jState(
     var txHash: StateFlow<String> = MutableStateFlow(("None")),
     var txHashReceipt: StateFlow<String> = MutableStateFlow(("None")),
     var contractViewFunctionResponse: StateFlow<String> = MutableStateFlow(("None")),
+    var contractViewFunctionResponse2: StateFlow<String> = MutableStateFlow(("None")),
     var contractStateModifyFunctionTxHash: StateFlow<String> = MutableStateFlow(("None")),
     var contractStateModifyFunctionTxHashReceipt: StateFlow<String> = MutableStateFlow(("None")),
 )
@@ -69,6 +76,7 @@ class ViewModel : ViewModel() {
     fun getTxHash(): StateFlow<String> = state.txHash
     fun getTxHashReceipt(): StateFlow<String> = state.txHashReceipt
     fun getContractViewFunctionResponse(): StateFlow<String> = state.contractViewFunctionResponse
+    fun getContractViewFunctionResponse2(): StateFlow<String> = state.contractViewFunctionResponse2
     fun getContractStateModifyFunctionTxHash(): StateFlow<String> = state.contractStateModifyFunctionTxHash
     fun getContractStateModifyFunctionTxHashReceipt(): StateFlow<String> = state.contractStateModifyFunctionTxHashReceipt
 
@@ -240,6 +248,68 @@ class ViewModel : ViewModel() {
             }
         }
     }
+
+    fun callContractViewFunction2() {
+        viewModelScope.launch {
+            try {
+
+                val id = Uint256(BigInteger.valueOf(123))
+
+                val function = Function(
+                    "getGISTProof",
+                    listOf(id),
+                    listOf(
+                        object : TypeReference<Uint256>() {},
+                        object : TypeReference<Bool>() {},
+                        object : TypeReference<DynamicArray<Uint256>>() {},
+                        object : TypeReference<Uint256>() {},
+                        object : TypeReference<Uint256>() {},
+                        object : TypeReference<Bool>() {},
+                        object : TypeReference<Uint256>() {},
+                        object : TypeReference<Uint256>() {}
+                    )
+                )
+
+                val encodedFunction = FunctionEncoder.encode(function)
+
+                val transaction = Transaction.createEthCallTransaction(credentials.address, contractAddressHex, encodedFunction)
+
+                val ethCall = handleWeb3jRequest(web3j.ethCall(transaction, DefaultBlockParameterName.LATEST))
+
+                val result = ethCall.result
+                val decodedResult = FunctionReturnDecoder.decode(result, function.outputParameters)
+
+                // 解析返回值
+                val root = decodedResult[0].value as BigInteger
+                val existence = decodedResult[1].value as Boolean
+                val siblings = (decodedResult[2].value as List<*>).map { it as BigInteger }
+                val index = decodedResult[3].value as BigInteger
+                val value = decodedResult[4].value as BigInteger
+                val auxExistence = decodedResult[5].value as Boolean
+                val auxIndex = decodedResult[6].value as BigInteger
+                val auxValue = decodedResult[7].value as BigInteger
+
+                // 创建 JSON 对象
+                val json = JSONObject()
+                json.put("root", root.toString())
+                json.put("existence", existence)
+                json.put("siblings", JSONArray(siblings.map { it.toString() }))
+                json.put("index", index.toString())
+                json.put("value", value.toString())
+                json.put("auxExistence", auxExistence)
+                json.put("auxIndex", auxIndex.toString())
+                json.put("auxValue", auxValue.toString())
+
+                val gistProofStr = json.toString(4)
+
+                println("response: $gistProofStr")
+                (state.contractViewFunctionResponse2 as MutableStateFlow).value = gistProofStr
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+
 
     fun callContractStateModifyFunction() {
 

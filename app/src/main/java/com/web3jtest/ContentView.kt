@@ -119,6 +119,17 @@ fun MainActivity.CallContractViewFunctionNode() {
 }
 
 @Composable
+fun MainActivity.CallContractViewFunctionNode2() {
+    val response by viewModel.getContractViewFunctionResponse2().collectAsState()
+
+    Button(onClick = {viewModel.callContractViewFunction2()}) {
+        Text("Call Contract View Function 2")
+    }
+
+    Text("Call Response 2: $response")
+}
+
+@Composable
 fun MainActivity.CallContractStateModifyFunctionNode() {
     val txHash by viewModel.getContractStateModifyFunctionTxHash().collectAsState()
 
@@ -171,6 +182,8 @@ fun MainActivity.ContentView(modifier: Modifier = Modifier) {
         TxHashReceiptNode()
 
         CallContractViewFunctionNode()
+
+        CallContractViewFunctionNode2()
 
         CallContractStateModifyFunctionNode()
 
