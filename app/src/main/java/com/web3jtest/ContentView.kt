@@ -2,7 +2,9 @@ package com.web3jtest
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -107,7 +109,7 @@ fun MainActivity.TxHashReceiptNode() {
 
 @Composable
 fun MainActivity.CallContractViewFunctionNode() {
-    val response by viewModel.getContractViewFuntionResponse().collectAsState()
+    val response by viewModel.getContractViewFunctionResponse().collectAsState()
 
     Button(onClick = {viewModel.callContractViewFunction()}) {
         Text("Call Contract View Function")
@@ -116,7 +118,27 @@ fun MainActivity.CallContractViewFunctionNode() {
     Text("Call Response: $response")
 }
 
+@Composable
+fun MainActivity.CallContractStateModifyFunctionNode() {
+    val txHash by viewModel.getContractStateModifyFunctionTxHash().collectAsState()
 
+    Button(onClick = {viewModel.callContractStateModifyFunction()}) {
+        Text("Call Contract State Modify Function")
+    }
+
+    Text("Tx Hash: $txHash")
+}
+
+@Composable
+fun MainActivity.ContractTxHashReceiptNode() {
+    val receipt by viewModel.getContractStateModifyFunctionTxHashReceipt().collectAsState()
+
+    Button(onClick = {viewModel.updateContractStateModifyFunctionTxHashReceipt()}) {
+        Text("Contract Func Call Tx Receipt")
+    }
+
+    Text("Contract Func Call Tx Receipt: $receipt")
+}
 
 
 @Composable
@@ -149,6 +171,12 @@ fun MainActivity.ContentView(modifier: Modifier = Modifier) {
         TxHashReceiptNode()
 
         CallContractViewFunctionNode()
+
+        CallContractStateModifyFunctionNode()
+
+        ContractTxHashReceiptNode()
+
+        Spacer(modifier = Modifier.height(30.dp))
 
     }
 }

@@ -7,6 +7,10 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
+import org.web3j.abi.FunctionEncoder
+import org.web3j.abi.datatypes.Bool
+import org.web3j.abi.datatypes.DynamicBytes
+import org.web3j.abi.datatypes.Function
 import org.web3j.abi.datatypes.generated.Uint256
 import org.web3j.crypto.Credentials
 import org.web3j.crypto.RawTransaction
@@ -20,6 +24,7 @@ import org.web3j.protocol.http.HttpService
 import org.web3j.tx.gas.DefaultGasProvider
 import org.web3j.utils.Numeric
 import java.math.BigInteger
+import java.security.SecureRandom
 import java.util.concurrent.CompletableFuture
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
@@ -34,7 +39,9 @@ data class Web3jState(
     val balance: StateFlow<BigInteger> = MutableStateFlow(BigInteger("0")),
     var txHash: StateFlow<String> = MutableStateFlow(("None")),
     var txHashReceipt: StateFlow<String> = MutableStateFlow(("None")),
-    var contractViewFuntionResponse: StateFlow<String> = MutableStateFlow(("None")),
+    var contractViewFunctionResponse: StateFlow<String> = MutableStateFlow(("None")),
+    var contractStateModifyFunctionTxHash: StateFlow<String> = MutableStateFlow(("None")),
+    var contractStateModifyFunctionTxHashReceipt: StateFlow<String> = MutableStateFlow(("None")),
 )
 
 class ViewModel : ViewModel() {
@@ -53,7 +60,6 @@ class ViewModel : ViewModel() {
     private val stateContract : StateContract = StateContract.load(contractAddressHex, web3j, credentials,
         DefaultGasProvider())
 
-
     fun getWeb3jVersion(): StateFlow<String> = state.web3jVersion
     fun getWeb3jNetVersion(): StateFlow<String> = state.web3jNetVersion
     fun getWeb3jEthProtocolVersion(): StateFlow<String> = state.web3jEthProtocolVersion
@@ -62,9 +68,9 @@ class ViewModel : ViewModel() {
     fun getBalance(): StateFlow<BigInteger> = state.balance
     fun getTxHash(): StateFlow<String> = state.txHash
     fun getTxHashReceipt(): StateFlow<String> = state.txHashReceipt
-    fun getContractViewFuntionResponse(): StateFlow<String> = state.contractViewFuntionResponse
-
-
+    fun getContractViewFunctionResponse(): StateFlow<String> = state.contractViewFunctionResponse
+    fun getContractStateModifyFunctionTxHash(): StateFlow<String> = state.contractStateModifyFunctionTxHash
+    fun getContractStateModifyFunctionTxHashReceipt(): StateFlow<String> = state.contractStateModifyFunctionTxHashReceipt
 
     private suspend fun <T> handleContractCall(
         remoteFunctionCall: RemoteFunctionCall<T>
@@ -106,8 +112,7 @@ class ViewModel : ViewModel() {
                 println("Connected to Ethereum client version: $web3ClientVersion")
                 (state.web3jVersion as MutableStateFlow).value = web3ClientVersion
             } catch (e: Exception) {
-                // 处理异常
-                e.printStackTrace()
+                 e.printStackTrace()
             }
         }
     }
@@ -119,8 +124,7 @@ class ViewModel : ViewModel() {
                 println("Network version: $netVersion")
                 (state.web3jNetVersion as MutableStateFlow).value = netVersion
             } catch (e: Exception) {
-                // 处理异常
-                e.printStackTrace()
+                 e.printStackTrace()
             }
         }
     }
@@ -132,8 +136,7 @@ class ViewModel : ViewModel() {
                 println("eth protocol version: $protocolVersion")
                 (state.web3jEthProtocolVersion as MutableStateFlow).value = protocolVersion
             } catch (e: Exception) {
-                // 处理异常
-                e.printStackTrace()
+                 e.printStackTrace()
             }
         }
     }
@@ -145,8 +148,7 @@ class ViewModel : ViewModel() {
                 println("Shh version: $version")
                 (state.web3jShhVersion as MutableStateFlow).value = version
             } catch (e: Exception) {
-                // 处理异常
-                e.printStackTrace()
+                 e.printStackTrace()
             }
         }
     }
@@ -158,8 +160,7 @@ class ViewModel : ViewModel() {
                 println("Peer count: $quantity")
                 (state.peerCount as MutableStateFlow).value = quantity
             } catch (e: Exception) {
-                // 处理异常
-                e.printStackTrace()
+                 e.printStackTrace()
             }
         }
     }
@@ -171,8 +172,7 @@ class ViewModel : ViewModel() {
                 println("Balance: $balance")
                 (state.balance as MutableStateFlow).value = balance
             } catch (e: Exception) {
-                // 处理异常
-                e.printStackTrace()
+                 e.printStackTrace()
             }
         }
     }
@@ -207,8 +207,7 @@ class ViewModel : ViewModel() {
                 updateBalance()
                 updateTxHashReceipt()
             } catch (e: Exception) {
-                // 处理异常
-                e.printStackTrace()
+                 e.printStackTrace()
             }
         }
     }
@@ -223,8 +222,7 @@ class ViewModel : ViewModel() {
                 (state.txHashReceipt as MutableStateFlow).value = json
 
             } catch (e: Exception) {
-                // 处理异常
-                e.printStackTrace()
+                 e.printStackTrace()
             }
         }
     }
@@ -236,13 +234,99 @@ class ViewModel : ViewModel() {
                 val gistProof = handleContractCall(stateContract.getGISTProof(Uint256(123)))
                 val gistProofStr = gistProof.toPrettyString()
                 println("response: $gistProofStr")
-                (state.contractViewFuntionResponse as MutableStateFlow).value = gistProofStr
+                (state.contractViewFunctionResponse as MutableStateFlow).value = gistProofStr
             } catch (e: Exception) {
-                // 处理异常
+                 e.printStackTrace()
+            }
+        }
+    }
+
+    fun callContractStateModifyFunction() {
+
+
+        viewModelScope.launch {
+            try {
+                /* use abi function
+                val txHash = handleContractCall(
+                    stateContract.transitStateGeneric(
+                        Uint256(generateRandomBigInteger(200)),
+                        Uint256(0),
+                        Uint256(2),
+                        Bool(true),
+                        Uint256(1),
+                        DynamicBytes.DEFAULT
+                    )
+                ).transactionHash
+                println("txHash: $txHash")
+                (state.contractStateModifyFunctionTxHash as MutableStateFlow).value = txHash
+                 */
+
+
+                val func = Function("transitStateGeneric",
+                    listOf(
+                        Uint256(generateRandomBigInteger(200)),
+                        Uint256(0),
+                        Uint256(2),
+                        Bool(true),
+                        Uint256(1),
+                        DynamicBytes.DEFAULT
+                    ),
+                    emptyList()
+                )
+
+                val encodedFunc = FunctionEncoder.encode(func)
+
+                val nonce = handleWeb3jRequest(web3j.ethGetTransactionCount(credentials.address, DefaultBlockParameterName.LATEST)).transactionCount
+                println("nonce: $nonce")
+                val gasPrice = handleWeb3jRequest(web3j.ethGasPrice()).gasPrice
+                println("gasPrice: $gasPrice")
+
+                val gasLimit = BigInteger.valueOf(210000)
+
+                val value = BigInteger.ZERO //we just call contract function, not sending ETH
+                val rawTransaction = RawTransaction.createTransaction(
+                    nonce, gasPrice, gasLimit, contractAddressHex, value, encodedFunc
+                )
+
+                val signedMessage = TransactionEncoder.signMessage(rawTransaction, credentials)
+
+                val hexValue = Numeric.toHexString(signedMessage)
+
+                val transactionHash = handleWeb3jRequest(web3j.ethSendRawTransaction(hexValue)).transactionHash
+
+                (state.txHash as MutableStateFlow).value = transactionHash
+
+                (state.contractStateModifyFunctionTxHash as MutableStateFlow).value = transactionHash
+
+                updateContractStateModifyFunctionTxHashReceipt()
+
+            } catch (e: Exception) {
+                 e.printStackTrace()
+            }
+        }
+    }
+
+    fun updateContractStateModifyFunctionTxHashReceipt() {
+        viewModelScope.launch {
+            try {
+                val transactionReceipt = handleWeb3jRequest(web3j.ethGetTransactionReceipt(state.contractStateModifyFunctionTxHash.value)).transactionReceipt.get()
+                val gson = GsonBuilder().setPrettyPrinting().create()
+                val json = gson.toJson(transactionReceipt)
+                println("ContractStateModifyFunctionTxHashReceipt: $json")
+                (state.contractStateModifyFunctionTxHashReceipt as MutableStateFlow).value = json
+
+            } catch (e: Exception) {
                 e.printStackTrace()
             }
         }
     }
+
+    private fun generateRandomBigInteger(maxBitLength: Int): BigInteger {
+        val secureRandom = SecureRandom()
+        val bitLength = secureRandom.nextInt(maxBitLength) + 1
+        return BigInteger(bitLength, secureRandom)
+    }
+
 }
 
 fun StateContract.GistProof.toPrettyString(): String {
